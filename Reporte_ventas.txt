@@ -1,0 +1,87 @@
+#!/bin/bash
+
+ARCHIVO="ventas_compania_actualizado.csv"
+REPORTE="Reporte_ventas.txt"
+
+# Verificar si el archivo existe
+function verificar_archivo {
+    if [[ ! -f "$ARCHIVO" ]]; then
+        echo " Archivo no encontrado: $ARCHIVO"
+        exit 1
+    fi
+}
+
+verificar_archivo
+
+# Función: Total de ingresos por categoría
+function ingresos_por_categoria {
+    echo -e "\n Total de ingresos por categoría:" >> "$REPORTE"
+    tail -n +2 "$ARCHIVO" | awk -F';' '{ ingresos[$4] += $7 } END { for (cat in ingresos) printf "• %s: $%.2f\n", cat, ingresos[cat] }' >> "$REPORTE"
+}
+
+# Función: Total de ingresos por mes
+function ingresos_por_mes {
+    echo -e "\n Total de ingresos por mes:" >> "$REPORTE"
+    tail -n +2 "$ARCHIVO" | awk -F';' '{
+        split($1, fecha, "-");
+        mes = fecha[1] "-" fecha[2];
+        ingresos[mes] += $7
+    } END {
+        for (m in ingresos) printf "• %s: $%.2f\n", m, ingresos[m]
+    }' >> "$REPORTE"
+}
+
+# Función: Total de ingresos por cliente
+function ingresos_por_cliente {
+    echo -e "\n Total de ingresos por cliente:" >> "$REPORTE"
+    tail -n +2 "$ARCHIVO" | awk -F';' '{ ingresos[$2] += $7 } END { for (c in ingresos) printf "• %s: $%.2f\n", c, ingresos[c] }' >> "$REPORTE"
+}
+
+# Función: Total de ingresos por departamento
+function ingresos_por_departamento {
+    echo -e "\n Total de ingresos por departamento:" >> "$REPORTE"
+    tail -n +2 "$ARCHIVO" | awk -F';' '{ ingresos[$3] += $7 } END { for (d in ingresos) printf "• %s: $%.2f\n", d, ingresos[d] }' >> "$REPORTE"
+}
+
+# Función: Top 10 productos más vendidos
+function top_10_productos {
+    echo -e "\n Top 10 productos más vendidos (por cantidad):" >> "$REPORTE"
+    tail -n +2 "$ARCHIVO" | awk -F';' '{
+        gsub(/^ +| +$/, "", $5);
+        productos[$5] += $6
+    } END {
+        for (p in productos) print productos[p], p
+    }' | sort -rn | head -10 | awk '{ printf "• %s unidades - %s\n", $1, $2 }' >> "$REPORTE"
+}
+
+# Función: Generar reporte completo
+function generar_reporte {
+    echo "Generando reporte en $REPORTE..."
+    echo "========== REPORTE DIARIO ==========" > "$REPORTE"
+    ingresos_por_categoria
+    ingresos_por_mes
+    ingresos_por_cliente
+    ingresos_por_departamento
+    top_10_productos
+    echo "Reporte generado exitosamente en $REPORTE."
+}
+
+# Mostrar menú
+function mostrar_menu {
+    echo -e "\n========== MENÚ DE REPORTES =========="
+    echo "1) Generar reporte completo"
+    echo "0) Salir"
+    echo "======================================"
+    echo -n "Selecciona una opción: "
+}
+
+# Loop del menú
+while true; do
+    mostrar_menu
+    read opcion
+    case $opcion in
+        1) generar_reporte ;;
+        0) echo "👋 ¡Hasta luego!"; exit 0 ;;
+        *) echo " Opción inválida. Intenta de nuevo." ;;
+    esac
+done
